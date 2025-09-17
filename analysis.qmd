@@ -53,7 +53,7 @@ Schielzeth, H., Dingemanse, N. J., Nakagawa, S., Westneat, D. F., Allegue, H., T
 
 # Research Objective
 
-1. To evaluate the effects of bio-inoculation and PEG 6000 stress on pea seed biomass, weight, and germination on pea crop.
+1. Determinar la influencia del volumen de riego en el comportamiento agronomorfológico y calidad del cultivo de arroz.
 
 > Figura: Proceso germinativo de arverja inoculados co bioestimulantes en condicioens de estres hídrico simulado. (a) Gerinación (%). (b) Tiempo medio de Germinación (c) Sincronia de la Germinación. (d) Indice de vigor de la germinación
 (e) Peso se las radiculas
