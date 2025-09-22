@@ -1,6 +1,6 @@
 ---
-title: ""
-author: ""
+title: "Evaluación del Volumen óptimo de agua de riego en el cultivo de arroz (Oryza sativa l.) Variedad INIA 515 CAPOTEÑA - Valle del Chira"
+author: "Sebastian Casas-Niño; Jose Luis Vilela Pingo; Leslie Alberca; Flavio Lozano-Isla."
 format:
   html:
     toc: true
@@ -23,18 +23,40 @@ execute:
 
 ```{r}
 #| label:  setup
-
+library(emmeans)
+library(corrplot)
+library(multcomp)
+library(FSA)
+library(agricolae)
+library(tidyverse)
+library(car)
+library(lme4)
 source('https://inkaverse.com/setup.r')
 ```
 
 # Data import
 
 ```{r}
-gs <- "url" %>% 
+gs <- "https://docs.google.com/spreadsheets/d/10e-foXp3XlmSt3xHje4MmSKIYnUGZHgLvbtC3p9HPd8/edit?gid=0#gid=0" %>% 
   as_sheets_id()
 
-fb <- gs %>% 
-  range_read(ss = .,sheet = "fb")
+morfo <- gs %>% 
+  range_read(ss = .,sheet = "morfometria") %>% 
+  mutate(across(1:5, ~ as.factor(.)))
+
+glimpse(morfo)
+
+rend <- gs %>% 
+  range_read(ss = .,sheet = "rendimiento") %>% 
+  mutate(across(1:5, ~ as.factor(.)))
+
+glimpse(rend)
+
+mol <- gs %>% 
+  range_read(ss = .,sheet = "molineria") %>% 
+  mutate(across(1:5, ~ as.factor(.)))
+
+glimpse(mol)
 ```
 
 # References
@@ -55,23 +77,51 @@ Schielzeth, H., Dingemanse, N. J., Nakagawa, S., Westneat, D. F., Allegue, H., T
 
 1. Determinar la influencia del volumen de riego en el comportamiento agronomorfológico y calidad del cultivo de arroz.
 
-> Figura: Proceso germinativo de arverja inoculados co bioestimulantes en condicioens de estres hídrico simulado. (a) Gerinación (%). (b) Tiempo medio de Germinación (c) Sincronia de la Germinación. (d) Indice de vigor de la germinación
-(e) Peso se las radiculas
+> Figura: Respuesta agromorfológica del arroz a diferentes volumenes de riego. (a) Altura de planta. (b) Macollos x golpe (c) Longitud de panoja. (d) Ancho de grano (e) Longitud de grano (f) Panojas x m2 (g) Rendimiento
 
-> PCA germinación
+> Fig x Grid de boxplot con la significancia
 
-1. To demonstrate the combined effects of bio-inoculation and fertilization on field experiment on pea crop
+2. Influencias del volumen de riego en la calidad del producto
 
-- Correlación de las variables por ambiente
-- Una MLT y calcular las medias ajustadas (BLUEs)
+- Molinería (entero, quebrado, centro blanco)
+- Tipo de grano (negro, vano, lleno)
 
-> Figura: Las variables de campo
+> Figura: Influencias del volumen de riego en la calidad. (a) granos enteros (%). (b) granos quebrados (c) granos centro blanco (d) granos negro (e) granos vano (f) granos lleno
 
-> Figura: PCA
+> Fig x Grid de boxplot con la significancia
+
+3. Influencias del volumen de riego en la calidad del producto
+
+- Análisis multivariado
+- Análisis económico
+
+> Fig x  PCA
+
+> Tablas
 
 ## RO 1
 
+mixto de localidad x tratamiento
+
 ```{r}
+m1 <- morfo %>% 
+  drop_na(altura_75) %>% 
+  lmer(altura_75 ~ trat_vol + (1|bloque), data = .)
+
+m2 <- morfo %>% 
+  drop_na(altura_75) %>% 
+  lmer(altura_75 ~ trat_vol + year + (1|bloque), data = .)
+
+m3 <- morfo %>% 
+  drop_na(altura_75) %>% 
+  lmer(altura_75 ~ trat_vol + (1|bloque) + (1|year), data = .)
+
+m4 <- morfo %>% 
+  drop_na(altura_75) %>% 
+  lmer(altura_75 ~ trat_vol + (1|year/bloque), data = .)
+
+AIC(m1, m2, m3, m4)
+BIC(m1, m2, m3, m4)
 
 ```
 
