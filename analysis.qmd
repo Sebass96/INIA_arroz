@@ -31,29 +31,29 @@ library(agricolae)
 library(tidyverse)
 library(car)
 library(lme4)
-source('https://inkaverse.com/setup.r')
+source("https://inkaverse.com/setup.r")
 ```
 
 # Data import
 
 ```{r}
-gs <- "https://docs.google.com/spreadsheets/d/10e-foXp3XlmSt3xHje4MmSKIYnUGZHgLvbtC3p9HPd8/edit?gid=0#gid=0" %>% 
+gs <- "https://docs.google.com/spreadsheets/d/10e-foXp3XlmSt3xHje4MmSKIYnUGZHgLvbtC3p9HPd8/edit?gid=0#gid=0" %>%
   as_sheets_id()
 
-morfo <- gs %>% 
-  range_read(ss = .,sheet = "morfometria") %>% 
+morfo <- gs %>%
+  range_read(ss = ., sheet = "morfometria") %>%
   mutate(across(1:5, ~ as.factor(.)))
 
 glimpse(morfo)
 
-rend <- gs %>% 
-  range_read(ss = .,sheet = "rendimiento") %>% 
+rend <- gs %>%
+  range_read(ss = ., sheet = "rendimiento") %>%
   mutate(across(1:5, ~ as.factor(.)))
 
 glimpse(rend)
 
-mol <- gs %>% 
-  range_read(ss = .,sheet = "molineria") %>% 
+mol <- gs %>%
+  range_read(ss = ., sheet = "molineria") %>%
   mutate(across(1:5, ~ as.factor(.)))
 
 glimpse(mol)
@@ -104,29 +104,124 @@ Schielzeth, H., Dingemanse, N. J., Nakagawa, S., Westneat, D. F., Allegue, H., T
 mixto de localidad x tratamiento
 
 ```{r}
-m1 <- morfo %>% 
-  drop_na(altura_75) %>% 
-  lmer(altura_75 ~ trat_vol + (1|bloque), data = .)
+m1 <- morfo %>%
+  drop_na(altura_75) %>%
+  lmer(altura_75 ~ trat_vol + (1 | bloque), data = .)
 
-m2 <- morfo %>% 
-  drop_na(altura_75) %>% 
-  lmer(altura_75 ~ trat_vol + year + (1|bloque), data = .)
+m2 <- morfo %>%
+  drop_na(altura_75) %>%
+  lmer(altura_75 ~ trat_vol + year + (1 | bloque), data = .)
 
-m3 <- morfo %>% 
-  drop_na(altura_75) %>% 
-  lmer(altura_75 ~ trat_vol + (1|bloque) + (1|year), data = .)
+m3 <- morfo %>%
+  drop_na(altura_75) %>%
+  lmer(altura_75 ~ trat_vol + (1 | bloque) + (1 | year), data = .)
 
-m4 <- morfo %>% 
-  drop_na(altura_75) %>% 
-  lmer(altura_75 ~ trat_vol + (1|year/bloque), data = .)
+m4 <- morfo %>%
+  drop_na(altura_75) %>%
+  lmer(altura_75 ~ trat_vol + (1 | year / bloque), data = .)
 
-AIC(m1, m2, m3, m4)
+m5 <- morfo %>%
+  drop_na(altura_75) %>%
+  lmer(altura_75 ~ trat_vol + (1 | year:bloque), data = .)
+
+AIC(m1, m2, m3, m4, m5)
 BIC(m1, m2, m3, m4)
-
 ```
 
 ## RO 2
 
 ```{r}
+dt <- morfo %>% 
+  dplyr::select(-altura_120)
 
+rs <- xfun::cache_rds(
+  {
+    traits <- names(dt)[6:length(dt)]
+
+    results <- traits %>%
+      set_names() %>%
+      map(\(trait) {
+        # Liberar memoria
+        gc()
+
+        # Definir modelo
+        mdf <- paste(trait, "trat_vol + year + (1|bloque)", sep = " ~ ")
+        cat("\n\n###", mdf)
+
+        # Remover outliers
+        md <- dt %>%
+          remove_outliers(as.formula(mdf),
+            plot_diag = TRUE,
+            drop_na = TRUE
+          )
+
+        # Mostrar outliers
+        md$outliers %>%
+          kable() %>%
+          print()
+        md$diagplot %>% print()
+
+        mdc <- md$model$clean
+
+        # ANOVA tipo III
+        Anova(mdc, type = 3, test.statistic = "F") %>% print()
+
+        # Comparaciones múltiples Light
+        mc_in <- emmeans::emmeans(mdc, ~ year | trat_vol,
+          type = "response"
+        ) %>%
+          cld(Letters = letters, reversed = TRUE) %>%
+          mutate(across(".group", trimws)) %>%
+          rename(sig1 = ".group")
+
+        mc_in %>%
+          kable() %>%
+          print()
+
+        # Comparaciones múltiples Water
+        mc_out <- emmeans::emmeans(mdc, ~ trat_vol | year,
+          type = "response"
+        ) %>%
+          cld(Letters = letters, reversed = TRUE) %>%
+          mutate(across(".group", trimws)) %>%
+          mutate(across(".group", toupper)) %>%
+          rename(sig2 = ".group")
+
+        mc_out %>%
+          kable() %>%
+          print()
+
+        # Merge y gráfico
+        mc <- merge(mc_in, mc_out) %>%
+          unite(col = "sig", c("sig1", "sig2"), sep = "")
+
+        mc %>%
+          kable() %>%
+          print()
+
+        p <- mc %>%
+          plot_smr(
+            type = "bar",
+            x = "trat_vol",
+            y = "emmean",
+            ylab = trait,
+            group = "year",
+            sig = "sig"
+          )
+
+        p %>% print()
+
+        # Salida nombrada
+        list(
+          cdt = md$data$clean,
+          mc = mc,
+          plot = p
+        )
+      })
+
+    results
+  },
+  file = "result.rds",
+  rerun = T
+)
 ```
