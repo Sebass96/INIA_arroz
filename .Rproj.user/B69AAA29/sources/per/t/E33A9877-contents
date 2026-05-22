@@ -1,0 +1,227 @@
+---
+title: "Evaluación del Volumen óptimo de agua de riego en el cultivo de arroz (Oryza sativa l.) Variedad INIA 515 CAPOTEÑA - Valle del Chira"
+author: "Sebastian Casas-Niño; Jose Luis Vilela Pingo; Leslie Alberca; Flavio Lozano-Isla."
+format:
+  html:
+    toc: true
+    toc-expand: true
+    toc-depth: 4
+    toc-location: left
+    number-sections: true
+    self-contained: true
+    code-fold: true
+    output-file: "ESM_1"
+editor_options: 
+  chunk_output_type: console
+execute: 
+  warning: false
+  message: false
+  echo: true
+---
+
+# Project Setup
+
+```{r}
+#| label:  setup
+library(emmeans)
+library(corrplot)
+library(multcomp)
+library(FSA)
+library(agricolae)
+library(tidyverse)
+library(car)
+library(lme4)
+source("https://inkaverse.com/setup.r")
+```
+
+# Data import
+
+```{r}
+gs <- "https://docs.google.com/spreadsheets/d/10e-foXp3XlmSt3xHje4MmSKIYnUGZHgLvbtC3p9HPd8/edit?gid=0#gid=0" %>%
+  as_sheets_id()
+
+morfo <- gs %>%
+  range_read(ss = ., sheet = "morfometria") %>%
+  mutate(across(1:5, ~ as.factor(.)))
+
+glimpse(morfo)
+
+rend <- gs %>%
+  range_read(ss = ., sheet = "rendimiento") %>%
+  mutate(across(1:5, ~ as.factor(.)))
+
+glimpse(rend)
+
+mol <- gs %>%
+  range_read(ss = ., sheet = "molineria") %>%
+  mutate(across(1:5, ~ as.factor(.)))
+
+glimpse(mol)
+```
+
+# References
+
+Broman, K. W., & Woo, K. H. (2017). Data organization in spreadsheets. The American Statistician, 72(1), 2–10. https://doi.org/10.1080/00031305.2017.1375989
+
+Zuur, A. F., Ieno, E. N., & Elphick, C. S. (2009). A protocol for data exploration to avoid common statistical problems. Methods in Ecology and Evolution, 1(1), 3–14. https://doi.org/10.1111/j.2041-210x.2009.00001.x
+
+Francoishusson. (2017, July 13). PCA course using FactoMineR | R-bloggers. R-bloggers. https://www.r-bloggers.com/2017/07/pca-course-using-factominer/
+
+Kozak, M., & Piepho, H. (2017). What’s normal anyway? Residual plots are more telling than significance tests when checking ANOVA assumptions. Journal of Agronomy and Crop Science, 204(1), 86–98. https://doi.org/10.1111/jac.12220
+
+Tanaka, E., & Hui, F. K. C. (2019). Symbolic formulae for linear mixed models. In Communications in computer and information science (pp. 3–21). https://doi.org/10.1007/978-981-15-1960-4_1
+
+Schielzeth, H., Dingemanse, N. J., Nakagawa, S., Westneat, D. F., Allegue, H., Teplitsky, C., Réale, D., Dochtermann, N. A., Garamszegi, L. Z., & Araya‐Ajoy, Y. G. (2020). Robustness of linear mixed‐effects models to violations of distributional assumptions. Methods in Ecology and Evolution, 11(9), 1141–1152. https://doi.org/10.1111/2041-210x.13434
+
+# Research Objective
+
+1. Determinar la influencia del volumen de riego en el comportamiento agronomorfológico y calidad del cultivo de arroz.
+
+> Figura: Respuesta agromorfológica del arroz a diferentes volumenes de riego. (a) Altura de planta. (b) Macollos x golpe (c) Longitud de panoja. (d) Ancho de grano (e) Longitud de grano (f) Panojas x m2 (g) Rendimiento
+
+> Fig x Grid de boxplot con la significancia
+
+2. Influencias del volumen de riego en la calidad del producto
+
+- Molinería (entero, quebrado, centro blanco)
+- Tipo de grano (negro, vano, lleno)
+
+> Figura: Influencias del volumen de riego en la calidad. (a) granos enteros (%). (b) granos quebrados (c) granos centro blanco (d) granos negro (e) granos vano (f) granos lleno
+
+> Fig x Grid de boxplot con la significancia
+
+3. Influencias del volumen de riego en la calidad del producto
+
+- Análisis multivariado
+- Análisis económico
+
+> Fig x  PCA
+
+> Tablas
+
+## RO 1
+
+mixto de localidad x tratamiento
+
+```{r}
+m1 <- morfo %>%
+  drop_na(altura_75) %>%
+  lmer(altura_75 ~ trat_vol + (1 | bloque), data = .)
+
+m2 <- morfo %>%
+  drop_na(altura_75) %>%
+  lmer(altura_75 ~ trat_vol + year + (1 | bloque), data = .)
+
+m3 <- morfo %>%
+  drop_na(altura_75) %>%
+  lmer(altura_75 ~ trat_vol + (1 | bloque) + (1 | year), data = .)
+
+m4 <- morfo %>%
+  drop_na(altura_75) %>%
+  lmer(altura_75 ~ trat_vol + (1 | year / bloque), data = .)
+
+m5 <- morfo %>%
+  drop_na(altura_75) %>%
+  lmer(altura_75 ~ trat_vol + (1 | year:bloque), data = .)
+
+AIC(m1, m2, m3, m4, m5)
+BIC(m1, m2, m3, m4)
+```
+
+## RO 2
+
+```{r}
+dt <- morfo %>% 
+  dplyr::select(-altura_120)
+
+rs <- xfun::cache_rds(
+  {
+    traits <- names(dt)[6:length(dt)]
+
+    results <- traits %>%
+      set_names() %>%
+      map(\(trait) {
+        # Liberar memoria
+        gc()
+
+        # Definir modelo
+        mdf <- paste(trait, "trat_vol + year + (1|bloque)", sep = " ~ ")
+        cat("\n\n###", mdf)
+
+        # Remover outliers
+        md <- dt %>%
+          remove_outliers(as.formula(mdf),
+            plot_diag = TRUE,
+            drop_na = TRUE
+          )
+
+        # Mostrar outliers
+        md$outliers %>%
+          kable() %>%
+          print()
+        md$diagplot %>% print()
+
+        mdc <- md$model$clean
+
+        # ANOVA tipo III
+        Anova(mdc, type = 3, test.statistic = "F") %>% print()
+
+        # Comparaciones múltiples Light
+        mc_in <- emmeans::emmeans(mdc, ~ year | trat_vol,
+          type = "response"
+        ) %>%
+          cld(Letters = letters, reversed = TRUE) %>%
+          mutate(across(".group", trimws)) %>%
+          rename(sig1 = ".group")
+
+        mc_in %>%
+          kable() %>%
+          print()
+
+        # Comparaciones múltiples Water
+        mc_out <- emmeans::emmeans(mdc, ~ trat_vol | year,
+          type = "response"
+        ) %>%
+          cld(Letters = letters, reversed = TRUE) %>%
+          mutate(across(".group", trimws)) %>%
+          mutate(across(".group", toupper)) %>%
+          rename(sig2 = ".group")
+
+        mc_out %>%
+          kable() %>%
+          print()
+
+        # Merge y gráfico
+        mc <- merge(mc_in, mc_out) %>%
+          unite(col = "sig", c("sig1", "sig2"), sep = "")
+
+        mc %>%
+          kable() %>%
+          print()
+
+        p <- mc %>%
+          plot_smr(
+            type = "bar",
+            x = "trat_vol",
+            y = "emmean",
+            ylab = trait,
+            group = "year",
+            sig = "sig"
+          )
+
+        p %>% print()
+
+        # Salida nombrada
+        list(
+          cdt = md$data$clean,
+          mc = mc,
+          plot = p
+        )
+      })
+
+    results
+  },
+  file = "result.rds",
+  rerun = T
+)
+```
