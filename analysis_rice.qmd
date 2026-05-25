@@ -25,6 +25,7 @@ execute:
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import seaborn as sns
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from matplotlib.patches import Patch
@@ -71,9 +72,239 @@ clima = dfs["clima"]
 
 The objective of this study is to demonstrate the effect of organic fertilizers, specifically compost and biol, applied at the soil and foliar levels on the quality of mango fruit at physiological and commercial maturity.
 
+## Meteorological data
+
+```{python}
+# ======================================================
+# FECHA
+# ======================================================
+
+clima["Fecha"] = pd.to_datetime(clima["Fecha"])
+
+# ======================================================
+# LOCALIDADES
+# ======================================================
+
+localidades = clima["Localidad"].unique()
+
+# ======================================================
+# LETRAS PANELES
+# ======================================================
+
+letters = ["a", "b", "c"]
+
+# ======================================================
+# FIGURA
+# ======================================================
+
+fig, axes = plt.subplots(
+    nrows=len(localidades),
+    ncols=1,
+    figsize=(10, 10),
+    sharex=True
+)
+
+# Si solo hay una localidad
+if len(localidades) == 1:
+    axes = [axes]
+
+# ======================================================
+# GUARDAR LEYENDA
+# ======================================================
+
+legend_handles = []
+legend_labels = []
+
+# ======================================================
+# LOOP LOCALIDADES
+# ======================================================
+
+for i, loc in enumerate(localidades):
+
+    ax = axes[i]
+
+    # ==================================================
+    # DATOS
+    # ==================================================
+
+    df = clima[
+        clima["Localidad"] == loc
+    ].copy()
+
+    # ==================================================
+    # LINEAS CLIMATICAS
+    # ==================================================
+
+    line1, = ax.plot(
+        df["Fecha"],
+        df["HR"]/3,
+        linestyle="--",
+        color="skyblue",
+        linewidth=2,
+        label="HR (%)"
+    )
+
+    line2, = ax.plot(
+        df["Fecha"],
+        df["Tmax"],
+        linestyle="--",
+        color="red",
+        linewidth=2,
+        label="Tmax (°C)"
+    )
+
+    line3, = ax.plot(
+        df["Fecha"],
+        df["Tmin"],
+        linestyle=":",
+        color="blue",
+        linewidth=2,
+        label="Tmin (°C)"
+    )
+
+    # ==================================================
+    # PRECIPITACION
+    # ==================================================
+
+    ax2 = ax.twinx()
+
+    ax2.bar(
+        df["Fecha"],
+        df["PP"]/3,
+        width=5,
+        color="cornflowerblue",
+        edgecolor="black",
+        alpha=0.7
+    )
+
+    # ==================================================
+    # GUARDAR LEYENDA SOLO UNA VEZ
+    # ==================================================
+
+    if i == 0:
+
+        legend_handles = [line1, line2, line3]
+
+        legend_labels = [
+            "HR (%)",
+            "Tmax (°C)",
+            "Tmin (°C)"
+        ]
+
+    # ==================================================
+    # ETIQUETAS
+    # ==================================================
+
+    ax.set_ylabel("Temperature °C")
+
+    ax2.set_ylabel("Precipitation (mm)")
+
+    # mover label eje derecho
+    ax2.yaxis.set_label_coords(1.03, 0.5)
+
+    # separar ticks eje derecho
+    ax2.tick_params(
+        axis='y',
+        pad=3
+    )
+
+    # ==================================================
+    # LIMITES
+    # ==================================================
+
+    ax.set_ylim(0, 50)
+
+    ax2.set_ylim(0, 100)
+
+    # ==================================================
+    # GRID
+    # ==================================================
+
+    ax.grid(
+        True,
+        linestyle="-",
+        alpha=0.5
+    )
+
+    # ==================================================
+    # LETRAS PANELES
+    # ==================================================
+
+    ax.text(
+        0.01,
+        0.95,
+        letters[i],
+        transform=ax.transAxes,
+        fontsize=18,
+        fontweight="bold",
+        ha="left",
+        va="top"
+    )
+
+    # ==================================================
+    # OCULTAR EJE X SUPERIOR
+    # ==================================================
+
+    if i < len(localidades) - 1:
+
+        ax.tick_params(
+            axis='x',
+            labelbottom=False
+        )
+
+# ======================================================
+# FORMATO FECHAS
+# ======================================================
+
+axes[-1].xaxis.set_major_formatter(
+    mdates.DateFormatter('%b')
+)
+
+plt.xticks(rotation=45)
+
+# ======================================================
+# LEYENDA GLOBAL
+# ======================================================
+
+fig.legend(
+    legend_handles,
+    legend_labels,
+    loc="upper center",
+    ncol=3,
+    frameon=False,
+    fontsize=12,
+    bbox_to_anchor=(0.5,1.02)
+)
+
+# ======================================================
+# AJUSTES
+# ======================================================
+
+plt.subplots_adjust(
+    top=0.95,
+    hspace=0.07,
+    right=0.92
+)
+
+# ======================================================
+# GUARDAR FIGURA
+# ======================================================
+
+plt.savefig(
+    "climate_figure.png",
+    dpi=600,
+    bbox_inches="tight"
+)
+
+# ======================================================
+# MOSTRAR
+# ======================================================
+
+plt.show()
+```
+
 ## Specific Objective 1
 
-Demonstrate the effect of organic fertilizers, specifically compost and biol, applied at the soil and foliar levels on the quality of mango fruit at physiological maturity.
 
 ```{python}
 # ======================================================
@@ -414,3 +645,488 @@ plt.savefig(
 )
 ```
 
+## Specific Objective 2
+
+
+```{python}
+# ======================================================
+# CONFIGURACION GENERAL
+# ======================================================
+
+sns.set_theme(
+    style="whitegrid",
+    context="paper"
+)
+
+palette_dict = {
+    "T0": "#66c2a5",
+    "T1": "#fc8d62",
+    "T2": "#8da0cb",
+    "T3": "#e78ac3"
+}
+
+# ======================================================
+# VARIABLES
+# ======================================================
+
+variables = [
+    "granos_enteros",
+    "granos_quebrados",
+    "granos_centro_blanco",
+    "n_granos_vano",
+    "n_granos_negro",
+    "n_granos_lleno"
+]
+
+ylabels = [
+    "Head rice (%)",
+    "Broken rice (%)",
+    "Grain chalkiness (%)",
+    "Number of unfilled grains per panicle",
+    "Number of black grains per panicle",
+    "Number of filled grains per panicle"
+]
+
+ylims = [
+    (35,75),
+    (0,35),
+    (0,40),
+    (0,40),
+    (0,18),
+    (80,200)
+]
+
+letters_panel = ["a","b","c","d","e","f"]
+
+# ======================================================
+# FUNCION PARA LETRAS DE TUKEY
+# ======================================================
+
+def tukey_letters(calidad, var):
+
+    summary = calidad.groupby("Tratamiento")[var].agg(
+        mean="mean"
+    ).reset_index()
+
+    tukey = pairwise_tukeyhsd(
+        endog=calidad[var],
+        groups=calidad["Tratamiento"],
+        alpha=0.05
+    )
+
+    tukey_df = pd.DataFrame(
+        data=tukey._results_table.data[1:],
+        columns=tukey._results_table.data[0]
+    )
+
+    groups = list(summary["Tratamiento"])
+
+    means = dict(
+        zip(summary["Tratamiento"], summary["mean"])
+    )
+
+    groups_sorted = sorted(
+        groups,
+        key=lambda g: means[g],
+        reverse=True
+    )
+
+    sig = pd.DataFrame(
+        False,
+        index=groups,
+        columns=groups
+    )
+
+    for _, row in tukey_df.iterrows():
+
+        g1 = row["group1"]
+        g2 = row["group2"]
+
+        sig.loc[g1, g2] = row["reject"]
+        sig.loc[g2, g1] = row["reject"]
+
+    letters_dict = {g: "" for g in groups}
+
+    alphabet = list("abcdefghijklmnopqrstuvwxyz")
+
+    for letter in alphabet:
+
+        assigned = []
+
+        for g in groups_sorted:
+
+            if letters_dict[g] == "":
+
+                compatible = True
+
+                for a in assigned:
+
+                    if sig.loc[g, a]:
+                        compatible = False
+                        break
+
+                if compatible:
+                    assigned.append(g)
+
+        if not assigned:
+            continue
+
+        for g in assigned:
+            letters_dict[g] += letter
+
+        if all(letters_dict[g] != "" for g in groups):
+            break
+
+    return letters_dict
+
+# ======================================================
+# FIGURA PRINCIPAL
+# ======================================================
+
+fig, axes = plt.subplots(
+    3,
+    2,
+    figsize=(12,11),
+    sharex=True
+)
+
+axes = axes.flatten()
+
+anova_results = {}
+
+# ======================================================
+# LOOP PRINCIPAL
+# ======================================================
+
+for i, var in enumerate(variables):
+
+    ax = axes[i]
+
+    # ==================================================
+    # ANOVA
+    # ==================================================
+
+    modelo = ols(
+        f"{var} ~ C(Localidad) + C(Localidad):C(Bloque) + C(Tratamiento)",
+        data=calidad
+    ).fit()
+
+    anova_table = sm.stats.anova_lm(
+        modelo,
+        typ=2
+    )
+
+    anova_results[var] = anova_table
+
+    # ==================================================
+    # SUMMARY
+    # ==================================================
+
+    summary = calidad.groupby("Tratamiento")[var].agg(
+        mean="mean",
+        sem="sem"
+    ).reset_index()
+
+    order = summary["Tratamiento"].tolist()
+
+    # ==================================================
+    # LETRAS TUKEY
+    # ==================================================
+
+    letters_dict = tukey_letters(calidad, var)
+
+    # ==================================================
+    # GRAFICO
+    # ==================================================
+
+    sns.violinplot(
+        data=calidad,
+        x="Tratamiento",
+        y=var,
+        order=order,
+        hue="Tratamiento",
+        palette=palette_dict,
+        inner="box",
+        linewidth=1.2,
+        cut=0,
+        density_norm="width",
+        legend=False,
+        ax=ax
+    )
+
+    sns.stripplot(
+    data=calidad,
+    x="Tratamiento",
+    y=var,
+    order=order,
+    color="black",
+    size=3,
+    jitter=0.15,
+    alpha=0.5,
+    ax=ax
+)
+
+    # ==================================================
+    # AGREGAR LETRAS TUKEY
+    # ==================================================
+
+    offset = calidad[var].std() * 0.15
+
+    for j, trat in enumerate(order):
+
+        y_max = calidad.loc[
+            calidad["Tratamiento"] == trat,
+            var
+        ].max()
+
+        ax.text(
+            j,
+            y_max + offset,
+            letters_dict[trat],
+            ha="center",
+            va="bottom",
+            fontsize=10,
+            fontweight="bold"
+        )
+
+    # ==================================================
+    # ESTETICA
+    # ==================================================
+
+    ax.set_ylabel(ylabels[i])
+
+    ax.set_ylim(ylims[i])
+
+    ax.grid(
+        True,
+        axis="y",
+        linestyle="-",
+        alpha=0.7
+    )
+
+    sns.despine(
+        left=False,
+        bottom=False,
+        ax=ax
+    )
+
+    # Letras panel
+    ax.text(
+        0.02,
+        0.97,
+        letters_panel[i],
+        transform=ax.transAxes,
+        fontsize=16,
+        fontweight="bold",
+        va="top"
+    )
+
+    # ==================================================
+    # OCULTAR EJE X SUPERIOR
+    # ==================================================
+
+    if i < 4:
+
+        ax.set_xlabel("")
+
+        ax.tick_params(
+            axis='x',
+            bottom=False,
+            labelbottom=False
+        )
+
+    else:
+        ax.set_xlabel("Treatment")
+
+# ======================================================
+# LEYENDA GLOBAL
+# ======================================================
+
+legend_labels = [
+    "T0: 17 000 m³ ha$^{-1}$",
+    "T1: 15 000 m³ ha$^{-1}$",
+    "T2: 14 000 m³ ha$^{-1}$",
+    "T3: 13 000 m³ ha$^{-1}$"
+]
+
+handles = [
+    plt.Rectangle((0,0),1,1,color=palette_dict[t])
+    for t in ["T0", "T1", "T2", "T3"]
+]
+
+fig.legend(
+    handles,
+    legend_labels,
+    loc="upper center",
+    ncol=4,                    # una sola fila
+    fontsize=10,
+    frameon=True,
+    bbox_to_anchor=(0.5,1.03)
+)
+
+# ======================================================
+# AJUSTAR ESPACIADO
+# ======================================================
+
+plt.subplots_adjust(
+    top=0.86,
+    hspace=0.25,
+    wspace=0.20
+)
+
+# ======================================================
+# MOSTRAR
+# ======================================================
+
+plt.show()
+
+plt.savefig(
+    "figure_3.jpg",
+    dpi=300,
+    bbox_inches="tight"
+)
+```
+
+## Specific Objective 3
+
+
+```{python}
+# ======================================================
+# VARIABLES
+# ======================================================
+
+variables = {
+    "rendimiento_kg_ha": "Grain yield (kg ha-1)",
+    "eficiencia_agua_kg_m3": "Irrigation water use efficiency (kg m³)"
+}
+
+# ======================================================
+# FUNCION LETRAS TUKEY
+# ======================================================
+
+def tukey_letters(rdt, var):
+
+    summary = rdt.groupby("Tratamiento")[var].agg(
+        mean="mean"
+    ).reset_index()
+
+    tukey = pairwise_tukeyhsd(
+        endog=rdt[var],
+        groups=rdt["Tratamiento"],
+        alpha=0.05
+    )
+
+    tukey_df = pd.DataFrame(
+        data=tukey._results_table.data[1:],
+        columns=tukey._results_table.data[0]
+    )
+
+    groups = list(summary["Tratamiento"])
+
+    means = dict(
+        zip(summary["Tratamiento"], summary["mean"])
+    )
+
+    groups_sorted = sorted(
+        groups,
+        key=lambda g: means[g],
+        reverse=True
+    )
+
+    sig = pd.DataFrame(
+        False,
+        index=groups,
+        columns=groups
+    )
+
+    for _, row in tukey_df.iterrows():
+
+        g1 = row["group1"]
+        g2 = row["group2"]
+
+        sig.loc[g1, g2] = row["reject"]
+        sig.loc[g2, g1] = row["reject"]
+
+    letters_dict = {g: "" for g in groups}
+
+    alphabet = list("abcdefghijklmnopqrstuvwxyz")
+
+    for letter in alphabet:
+
+        assigned = []
+
+        for g in groups_sorted:
+
+            if letters_dict[g] == "":
+
+                compatible = True
+
+                for a in assigned:
+
+                    if sig.loc[g, a]:
+                        compatible = False
+                        break
+
+                if compatible:
+                    assigned.append(g)
+
+        if not assigned:
+            continue
+
+        for g in assigned:
+            letters_dict[g] += letter
+
+        if all(letters_dict[g] != "" for g in groups):
+            break
+
+    return letters_dict
+
+# ======================================================
+# TABLA FINAL
+# ======================================================
+
+tabla_final = pd.DataFrame()
+
+# tratamientos
+tabla_final["Treatment"] = sorted(
+    morfo["Tratamiento"].unique()
+)
+
+# ======================================================
+# LOOP VARIABLES
+# ======================================================
+
+for var, label in variables.items():
+
+    # summary
+    summary = rdt.groupby("Tratamiento")[var].agg(
+        mean="mean",
+        sd="std"
+    ).reset_index()
+
+    # letras
+    letters_dict = tukey_letters(rdt, var)
+
+    # columna final
+    summary[label] = (
+        summary["mean"].round(2).astype(str)
+        + " ± "
+        + summary["sd"].round(2).astype(str)
+        + " "
+        + summary["Tratamiento"].map(letters_dict)
+    )
+
+    # agregar a tabla
+    tabla_final[label] = summary[label]
+
+# ======================================================
+# VER TABLA
+# ======================================================
+
+print(tabla_final)
+
+tabla_final.to_excel(
+    "table_morphology.xlsx",
+    index=False
+)
+```
