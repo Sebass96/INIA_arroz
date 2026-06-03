@@ -1,5 +1,5 @@
 ---
-title: "Evaluación del volumen óptimo de riego en el cultivo de arroz (Oryza sativa L.) en el Valle del Chira, Perú"
+title: "Optimizing irrigation water volume for sustainable rice production in northern Peru"
 format:
   html:
     toc: true
@@ -8,14 +8,14 @@ format:
     toc-location: left
     number-sections: true
     self-contained: true
-    code-fold: true
+    code-fold: false
     output-file: "ESM_1"
 editor_options: 
   chunk_output_type: console
 execute: 
   warning: false
   message: false
-  eval: false
+  eval: true
   echo: true
 ---
 
@@ -31,7 +31,9 @@ from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from matplotlib.patches import Patch
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
+from statsmodels.stats.anova import anova_lm
 from itertools import combinations
+from scipy.stats import zscore
 ```
 
 # Import data
@@ -68,11 +70,7 @@ calidad = dfs["calidad"]
 clima = dfs["clima"]
 ```
 
-# Objetives
-
-The objective of this study is to demonstrate the effect of organic fertilizers, specifically compost and biol, applied at the soil and foliar levels on the quality of mango fruit at physiological and commercial maturity.
-
-## Meteorological data
+# Meteorological data
 
 ```{python}
 # ======================================================
@@ -291,7 +289,7 @@ plt.subplots_adjust(
 # ======================================================
 
 plt.savefig(
-    "climate_figure.png",
+    "submission/figure_2.jpg",
     dpi=600,
     bbox_inches="tight"
 )
@@ -303,8 +301,215 @@ plt.savefig(
 plt.show()
 ```
 
-## Specific Objective 1
+# Objetives
 
+## General objective: To evaluate the effect of different irrigation water volumes on the morphology, yield, and grain quality of rice in northern Peru.
+
+```{python}
+# =====================================================
+# VARIABLES POR DATASET
+# =====================================================
+
+datasets = {
+
+    "Agromorphological traits": {
+        "data": morfo,
+        "variables": [
+            "altura_cm",
+            "ancho_grano_mm",
+            "longitud_grano_mm",
+            "n_macollos_golpe",
+            "longitud_panoja_cm",
+            "n_panojas_m2"
+        ]
+    },
+    
+    "Milling quality": {
+        "data": calidad,
+        "variables": [
+            "granos_enteros",
+            "granos_quebrados",
+            "granos_centro_blanco",
+            "n_granos_vano",
+            "n_granos_negro",
+            "n_granos_lleno"
+        ]
+    },
+
+    "Yield and water-use efficiency": {
+        "data": rdt,
+        "variables": [
+            "rendimiento_kg_ha",
+            "eficiencia_agua_kg_m3"
+        ]
+    }
+}
+
+# =====================================================
+# FUNCIONES AUXILIARES
+# =====================================================
+
+def stars(p):
+
+    if pd.isna(p):
+        return ""
+
+    elif p < 0.001:
+        return " (***)"
+
+    elif p < 0.01:
+        return " (**)"
+
+    elif p < 0.05:
+        return " (*)"
+
+    else:
+        return " (ns)"
+
+
+def format_ms(ms, p):
+
+    if pd.isna(ms):
+        return ""
+
+    return f"{ms:.4f}{stars(p)}"
+
+
+# =====================================================
+# TABLA ANOVA
+# =====================================================
+
+resultados = []
+
+# =====================================================
+# LOOP PRINCIPAL
+# =====================================================
+
+for grupo, info in datasets.items():
+
+    df = info["data"].copy()
+
+    variables = info["variables"]
+
+    # Factores
+    df["Tratamiento"] = df["Tratamiento"].astype("category")
+    df["Localidad"] = df["Localidad"].astype("category")
+    df["Bloque"] = df["Bloque"].astype("category")
+
+    for var in variables:
+
+        print(f"Analizando: {var}")
+
+        data = df[
+            ["Tratamiento", "Localidad", "Bloque", var]
+        ].dropna()
+
+        # =================================================
+        # MODELO
+        # =================================================
+
+        formula = (
+            f"Q('{var}') ~ "
+            f"C(Tratamiento) * C(Localidad) + "
+            f"C(Localidad):C(Bloque)"
+        )
+
+        model = ols(
+            formula,
+            data=data
+        ).fit()
+
+        anova = anova_lm(
+            model,
+            typ=2
+        )
+
+        # =================================================
+        # NOMBRES DE TERMINOS
+        # =================================================
+
+        term_trat = "C(Tratamiento)"
+        term_loc = "C(Localidad)"
+        term_inter = "C(Tratamiento):C(Localidad)"
+        term_bloque = "C(Localidad):C(Bloque)"
+        term_resid = "Residual"
+
+        # =================================================
+        # CUADRADOS MEDIOS
+        # =================================================
+
+        ms_trat = (
+            anova.loc[term_trat, "sum_sq"] /
+            anova.loc[term_trat, "df"]
+        )
+
+        ms_loc = (
+            anova.loc[term_loc, "sum_sq"] /
+            anova.loc[term_loc, "df"]
+        )
+
+        ms_inter = (
+            anova.loc[term_inter, "sum_sq"] /
+            anova.loc[term_inter, "df"]
+        )
+
+        ms_bloque = (
+            anova.loc[term_bloque, "sum_sq"] /
+            anova.loc[term_bloque, "df"]
+        )
+
+        ms_resid = (
+            anova.loc[term_resid, "sum_sq"] /
+            anova.loc[term_resid, "df"]
+        )
+
+        # =================================================
+        # GUARDAR RESULTADOS
+        # =================================================
+
+        resultados.append({
+
+            "Grupo": grupo,
+
+            "Variable": var,
+
+            "Tratamiento": format_ms(
+                ms_trat,
+                anova.loc[term_trat, "PR(>F)"]
+            ),
+
+            "Localidad": format_ms(
+                ms_loc,
+                anova.loc[term_loc, "PR(>F)"]
+            ),
+
+            "Tratamiento × Localidad": format_ms(
+                ms_inter,
+                anova.loc[term_inter, "PR(>F)"]
+            ),
+
+            "Bloque(Localidad)": format_ms(
+                ms_bloque,
+                anova.loc[term_bloque, "PR(>F)"]
+            ),
+
+            "Residual": format_ms(
+                ms_resid,
+                np.nan
+            )
+        })
+
+# =====================================================
+# TABLA FINAL
+# =====================================================
+
+tabla_anova = pd.DataFrame(resultados)
+
+# Mostrar
+display(tabla_anova)
+```
+
+## Specific Objective 1
 
 ```{python}
 # ======================================================
@@ -639,14 +844,13 @@ plt.subplots_adjust(
 plt.show()
 
 plt.savefig(
-    "figure_2.jpg",
+    "submission/figure_3.jpg",
     dpi=300,
     bbox_inches="tight"
 )
 ```
 
 ## Specific Objective 2
-
 
 ```{python}
 # ======================================================
@@ -981,14 +1185,13 @@ plt.subplots_adjust(
 plt.show()
 
 plt.savefig(
-    "figure_3.jpg",
+    "submission/figure_4.jpg",
     dpi=300,
     bbox_inches="tight"
 )
 ```
 
 ## Specific Objective 3
-
 
 ```{python}
 # ======================================================
@@ -1123,10 +1326,488 @@ for var, label in variables.items():
 # VER TABLA
 # ======================================================
 
-print(tabla_final)
+display(tabla_final)
+```
 
-tabla_final.to_excel(
-    "table_morphology.xlsx",
-    index=False
+## Multivariate analysis
+
+```{python}
+# =====================================================
+# 1. UNIR BASES
+# =====================================================
+
+df = (
+    rdt.merge(
+        calidad,
+        on=["Tratamiento", "Localidad", "Bloque"],
+        how="inner"
+    )
+    .merge(
+        morfo,
+        on=["Tratamiento", "Localidad", "Bloque"],
+        how="inner"
+    )
 )
+
+# =====================================================
+# 3. VARIABLES
+# =====================================================
+
+variables = [
+
+    # Rendimiento
+    "rendimiento_kg_ha",
+    "eficiencia_agua_kg_m3",
+
+    # Calidad
+    "granos_enteros",
+    "granos_quebrados",
+    "granos_centro_blanco",
+    "n_granos_vano",
+    "n_granos_negro",
+    "n_granos_lleno",
+
+    # Morfometría
+    "altura_cm",
+    "ancho_grano_mm",
+    "longitud_grano_mm",
+    "n_macollos_golpe",
+    "longitud_panoja_cm",
+    "n_panojas_m2"
+]
+
+# =====================================================
+# 4. VERIFICAR VARIABLES EXISTENTES
+# =====================================================
+
+variables = [
+    v for v in variables
+    if v in df.columns
+]
+
+print("Variables usadas:")
+print(variables)
+
+# =====================================================
+# 5. NOMBRES EN INGLÉS
+# =====================================================
+
+variable_names_en = {
+
+    "rendimiento_kg_ha":
+        "Grain yield (kg ha$^{-1}$)",
+
+    "eficiencia_agua_kg_m3":
+        "Water use efficiency (kg m$^{-3}$)",
+
+    "granos_enteros":
+        "Head rice (%)",
+
+    "granos_quebrados":
+        "Broken rice (%)",
+
+    "granos_centro_blanco":
+        "White-center grains",
+
+    "n_granos_vano":
+        "Unfilled grains",
+
+    "n_granos_negro":
+        "Black grains",
+
+    "n_granos_lleno":
+        "Filled grains",
+
+    "altura_cm":
+        "Plant height (cm)",
+
+    "ancho_grano_mm":
+        "Grain width (mm)",
+
+    "longitud_grano_mm":
+        "Grain length (mm)",
+
+    "n_macollos_golpe":
+        "Tillers per hill",
+
+    "longitud_panoja_cm":
+        "Panicle length (cm)",
+
+    "n_panojas_m2":
+        "Panicles per m²"
+}
+
+# =====================================================
+# 6. MEDIA POR TRATAMIENTO
+# =====================================================
+
+tabla_medias = (
+    df.groupby("Tratamiento")[variables]
+    .mean()
+)
+
+# =====================================================
+# 7. Z-SCORE
+# =====================================================
+
+tabla_z = tabla_medias.apply(
+    zscore,
+    axis=0
+)
+
+# Filas = variables
+# Columnas = tratamientos
+
+tabla_z_plot = tabla_z.T
+
+# =====================================================
+# 8. RENOMBRAR VARIABLES
+# =====================================================
+
+tabla_z_plot = tabla_z_plot.rename(
+    index=variable_names_en
+)
+
+# =====================================================
+# 9. HEATMAP
+# =====================================================
+
+sns.set_theme(
+    style="white",
+    context="paper"
+)
+
+g = sns.clustermap(
+    tabla_z_plot,
+    cmap="RdYlBu_r",
+    center=0,
+    linewidths=0.6,
+    linecolor="white",
+    figsize=(10,9),
+    method="ward",
+    metric="euclidean",
+    row_cluster=True,
+    col_cluster=True,
+    annot=True,
+    fmt=".2f",
+    annot_kws={
+        "size":8,
+        "color":"black"
+    },
+    cbar_kws={
+        "label":"Z-score"
+    }
+)
+
+# =====================================================
+# 10. ETIQUETAS
+# =====================================================
+
+g.ax_heatmap.set_xlabel(
+    "Treatment",
+    fontsize=11,
+    fontweight="bold"
+)
+
+g.ax_heatmap.set_ylabel(
+    "Traits",
+    fontsize=11,
+    fontweight="bold"
+)
+
+g.ax_heatmap.tick_params(
+    axis="x",
+    labelsize=10
+)
+
+g.ax_heatmap.tick_params(
+    axis="y",
+    labelsize=9
+)
+
+plt.setp(
+    g.ax_heatmap.get_xticklabels(),
+    rotation=0
+)
+
+plt.setp(
+    g.ax_heatmap.get_yticklabels(),
+    rotation=0
+)
+
+# =====================================================
+# 11. TITULO
+# =====================================================
+
+g.fig.suptitle(
+    "Relationship between irrigation treatments and rice traits",
+    y=1.02,
+    fontsize=14,
+    fontweight="bold"
+)
+
+# =====================================================
+# 12. GUARDAR
+# =====================================================
+
+plt.savefig(
+    "submission/figure_5.jpg",
+    dpi=600,
+    bbox_inches="tight"
+)
+
+plt.show()
+```
+
+## Supplementary material
+
+```{python}
+# =====================================================
+# UNIR DATASETS
+# =====================================================
+
+df = (
+    rdt.merge(
+        calidad,
+        on=["Tratamiento", "Localidad", "Bloque"],
+        how="inner"
+    )
+    .merge(
+        morfo,
+        on=["Tratamiento", "Localidad", "Bloque"],
+        how="inner"
+    )
+)
+
+df["Localidad"] = df["Localidad"].replace({
+    "PAITA": "Viviate",
+    "IGNACIO ESCUDERO": "Ignacio Escudero",
+    "EEA El Chira": "E.E.A. El Chira"
+})
+
+# =====================================================
+# VARIABLES
+# =====================================================
+
+variables = [
+
+    # Morfometría
+    "altura_cm",
+    "ancho_grano_mm",
+    "longitud_grano_mm",
+    "n_macollos_golpe",
+    "longitud_panoja_cm",
+    "n_panojas_m2",
+
+    # Calidad
+    "granos_enteros",
+    "granos_quebrados",
+    "granos_centro_blanco",
+    "n_granos_vano",
+    "n_granos_negro",
+    "n_granos_lleno",
+
+    # Rendimiento
+    "rendimiento_kg_ha",
+    "eficiencia_agua_kg_m3"
+]
+
+# =====================================================
+# VERIFICAR VARIABLES EXISTENTES
+# =====================================================
+
+variables = [
+    v for v in variables
+    if v in df.columns
+]
+
+# =====================================================
+# NOMBRES EN INGLÉS
+# =====================================================
+
+rename_vars = {
+
+    # Morfometría
+    "altura_cm":
+        "Plant height (cm)",
+
+    "ancho_grano_mm":
+        "Grain width (mm)",
+
+    "longitud_grano_mm":
+        "Grain length (mm)",
+
+    "n_macollos_golpe":
+        "Number of tillers per hill",
+
+    "longitud_panoja_cm":
+        "Panicle length (cm)",
+
+    "n_panojas_m2":
+        "Number of panicles per m²",
+
+    # Calidad
+    "granos_enteros":
+        "Head rice (%)",
+
+    "granos_quebrados":
+        "Broken rice (%)",
+
+    "granos_centro_blanco":
+        "White-center grains",
+
+    "n_granos_vano":
+        "Unfilled grains",
+
+    "n_granos_negro":
+        "Black grains",
+
+    "n_granos_lleno":
+        "Filled grains",
+
+    # Rendimiento
+    "rendimiento_kg_ha":
+        "Grain yield (kg ha⁻¹)",
+
+    "eficiencia_agua_kg_m3":
+        "Water use efficiency (kg m⁻³)"
+}
+
+# =====================================================
+# FUNCIÓN LETRAS TUKEY
+# =====================================================
+
+def tukey_letters(
+    data,
+    var,
+    group_col="Localidad",
+    alpha=0.05
+):
+
+    summary = (
+        data.groupby(group_col)[var]
+        .mean()
+        .sort_values(ascending=False)
+    )
+
+    groups = summary.index.tolist()
+
+    tukey = pairwise_tukeyhsd(
+        endog=data[var],
+        groups=data[group_col],
+        alpha=alpha
+    )
+
+    tukey_df = pd.DataFrame(
+        data=tukey._results_table.data[1:],
+        columns=tukey._results_table.data[0]
+    )
+
+    sig = pd.DataFrame(
+        False,
+        index=groups,
+        columns=groups
+    )
+
+    for _, row in tukey_df.iterrows():
+
+        g1 = row["group1"]
+        g2 = row["group2"]
+
+        sig.loc[g1, g2] = bool(row["reject"])
+        sig.loc[g2, g1] = bool(row["reject"])
+
+    letters = list("abcdefghijklmnopqrstuvwxyz")
+
+    letters_dict = {
+        g: "" for g in groups
+    }
+
+    for letter in letters:
+
+        assigned = []
+
+        for g in groups:
+
+            compatible = True
+
+            for a in assigned:
+
+                if sig.loc[g, a]:
+                    compatible = False
+                    break
+
+            if compatible and letters_dict[g] == "":
+                assigned.append(g)
+
+        for g in assigned:
+            letters_dict[g] += letter
+
+        if all(
+            letters_dict[g] != ""
+            for g in groups
+        ):
+            break
+
+    return letters_dict
+
+# =====================================================
+# MEDIA Y SD POR LOCALIDAD
+# =====================================================
+
+mean_df = (
+    df.groupby("Localidad")[variables]
+    .mean()
+)
+
+std_df = (
+    df.groupby("Localidad")[variables]
+    .std()
+)
+
+# =====================================================
+# TABLA FINAL
+# =====================================================
+
+summary = pd.DataFrame(
+    index=variables,
+    columns=mean_df.index,
+    dtype="object"
+)
+
+for var in variables:
+
+    letters_dict = tukey_letters(
+        df,
+        var,
+        group_col="Localidad"
+    )
+
+    for loc in mean_df.index:
+
+        mean_val = mean_df.loc[loc, var]
+        std_val = std_df.loc[loc, var]
+
+        letter = letters_dict[loc]
+
+        summary.loc[var, loc] = (
+            f"{mean_val:.2f} ± "
+            f"{std_val:.2f} "
+            f"{letter}"
+        )
+
+# =====================================================
+# RENOMBRAR VARIABLES
+# =====================================================
+
+summary.index = [
+    rename_vars[v]
+    for v in summary.index
+]
+
+# =====================================================
+# MOSTRAR
+# =====================================================
+
+display(summary)
 ```
