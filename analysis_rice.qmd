@@ -542,7 +542,7 @@ variables = [
 ]
 
 ylabels = [
-    "Height (cm)",
+    "Plant height (cm)",
     "Number of tillers per hill",
     "Panicle length (cm)",
     "Number of panicles per m²",
@@ -885,7 +885,7 @@ variables = [
 ylabels = [
     "Head rice (%)",
     "Broken rice (%)",
-    "Grain chalkiness (%)",
+    "Chalky grains (%)",
     "Number of unfilled grains per panicle",
     "Number of black grains per panicle",
     "Number of filled grains per panicle"
@@ -1407,7 +1407,7 @@ variable_names_en = {
         "Broken rice (%)",
 
     "granos_centro_blanco":
-        "White-center grains",
+        "Chalky grains (%)",
 
     "n_granos_vano":
         "Unfilled grains",
@@ -1479,7 +1479,7 @@ sns.set_theme(
 
 g = sns.clustermap(
     tabla_z_plot,
-    cmap="RdYlBu_r",
+    cmap="RdYlBu",
     center=0,
     linewidths=0.6,
     linecolor="white",
@@ -1654,7 +1654,7 @@ rename_vars = {
         "Broken rice (%)",
 
     "granos_centro_blanco":
-        "White-center grains",
+        "Chalky grains (%)",
 
     "n_granos_vano":
         "Unfilled grains",
