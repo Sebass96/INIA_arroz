@@ -23,7 +23,7 @@ ORCID IDs:
 * Optimized irrigation improved water productivity in northern Peru.
 
 
-<div style='margin-top: 3em;'></div>
+\newpage
 
 **Declarations**
 
@@ -48,7 +48,7 @@ We also express our sincere appreciation to Ph.D. Héctor Alonso Escobar García
 
 The original contributions presented in this study are included in the article and supplementary material. Reproducible datasets and data analysis are available in Supplementary File 1 and can be accessed via the GitHub repository at: [https://github.com/Sebass96/INIA_arroz](https://github.com/Sebass96/INIA_arroz.git)  
 
-<div style='margin-top: 3em;'></div>
+\newpage
 
 **ABSTRACT**  
 Increasing pressure on water resources and the impacts of climate change have intensified the need to optimize water use in rice (*Oryza sativa* L.) cultivation. In this context, the present study aimed to evaluate the influence of different irrigation volumes on the agromorphological performance, grain quality, and water use efficiency of rice under the agroclimatic conditions of the Chira Valley, Peru. The experiment was conducted at three locations within the Chira Valley using a randomized complete block design, evaluating four irrigation treatments: T0 (17,000 m³ ha⁻¹), T1 (15,000 m³ ha⁻¹), T2 (14,000 m³ ha⁻¹), and T3 (13,000 m³ ha⁻¹). The results showed that moderate reductions in irrigation volume did not significantly affect agromorphological traits, grain quality, or crop yield. Grain yields ranged from 11,304.42 to 11,812.58 kg ha⁻¹, with no significant differences among treatments. However, water use efficiency was significantly affected by irrigation volume (p \< 0.001), increasing as the amount of applied water decreased. Treatments T2 and T3 exhibited approximate increases of 22% and 26%, respectively, compared with the conventional irrigation treatment. Significant differences were also observed among locations, highlighting the influence of edaphoclimatic conditions on crop response. These findings demonstrate that moderate reductions in irrigation volume represent a viable strategy to optimize water use and promote more sustainable rice production systems in northern Peru.
@@ -56,7 +56,7 @@ Increasing pressure on water resources and the impacts of climate change have in
 **Keywords:** Rice, irrigation management, water-use efficiency, deficit irrigation, sustainable agriculture.
 
 
-<div style='margin-top: 3em;'></div>
+\newpage
 
 # **INTRODUCTION**
 
