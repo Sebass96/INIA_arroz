@@ -1,5 +1,5 @@
 ---
-title: "Optimizing irrigation water volume for sustainable rice production in northern Peru"
+title: "Water-Use Efficiency and Rice Productivity under Reduced Irrigation in Tropical Arid Conditions"
 format:
   html:
     toc: true
@@ -27,6 +27,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import seaborn as sns
+import ptitprince as pt 
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from matplotlib.patches import Patch
 import statsmodels.api as sm
@@ -306,13 +307,47 @@ plt.show()
 ## General objective: To evaluate the effect of different irrigation water volumes on the morphology, yield, and grain quality of rice in northern Peru.
 
 ```{python}
+# NOMBRES DE VARIABLES PARA TABLAS Y FIGURAS
+# =====================================================
+
+variable_labels = {
+
+    # Yield
+    "rendimiento_t_ha": "Grain yield (t ha⁻¹)",
+    "eficiencia_agua_kg_m3": "Water-use efficiency (kg m⁻³)",
+
+    # Agronomic traits
+    "altura_cm": "Plant height (cm)",
+    "ancho_grano_mm": "Grain width (mm)",
+    "longitud_grano_mm": "Grain length (mm)",
+    "n_macollos_golpe": "Number of tillers per hill",
+    "longitud_panoja_cm": "Panicle length (cm)",
+    "n_panojas_m2": "Panicles m⁻²",
+
+    # Grain quality
+    "granos_enteros": "Head rice (%)",
+    "granos_quebrados": "Broken rice (%)",
+    "granos_centro_blanco": "Chalky grains (%)",
+    "n_granos_vano": "Number of unfilled grains per panicle",
+    "n_granos_negro": "Number of black grains per panicle",
+    "n_granos_lleno": "Number of filled grains per panicle"
+}
+
 # =====================================================
 # VARIABLES POR DATASET
 # =====================================================
 
 datasets = {
 
-    "Agromorphological traits": {
+    "Yield and water-use efficiency": {
+        "data": rdt,
+        "variables": [
+            "rendimiento_t_ha",
+            "eficiencia_agua_kg_m3"
+        ]
+    },
+
+    "Agronomic traits": {
         "data": morfo,
         "variables": [
             "altura_cm",
@@ -324,7 +359,7 @@ datasets = {
         ]
     },
     
-    "Milling quality": {
+    "Grain quality traits": {
         "data": calidad,
         "variables": [
             "granos_enteros",
@@ -334,15 +369,8 @@ datasets = {
             "n_granos_negro",
             "n_granos_lleno"
         ]
-    },
-
-    "Yield and water-use efficiency": {
-        "data": rdt,
-        "variables": [
-            "rendimiento_kg_ha",
-            "eficiencia_agua_kg_m3"
-        ]
     }
+
 }
 
 # =====================================================
@@ -372,7 +400,12 @@ def format_ms(ms, p):
     if pd.isna(ms):
         return ""
 
-    return f"{ms:.4f}{stars(p)}"
+    if ms >= 1:
+        txt = f"{ms:.2f}"
+    else:
+        txt = f"{ms:.4f}"
+
+    return txt + stars(p)
 
 
 # =====================================================
@@ -389,6 +422,10 @@ for grupo, info in datasets.items():
 
     df = info["data"].copy()
 
+    # Convertir rendimiento a toneladas por hectárea
+    if "rendimiento_kg_ha" in df.columns:
+        df["rendimiento_t_ha"] = df["rendimiento_kg_ha"] / 1000
+
     variables = info["variables"]
 
     # Factores
@@ -403,10 +440,6 @@ for grupo, info in datasets.items():
         data = df[
             ["Tratamiento", "Localidad", "Bloque", var]
         ].dropna()
-
-        # =================================================
-        # MODELO
-        # =================================================
 
         formula = (
             f"Q('{var}') ~ "
@@ -424,19 +457,11 @@ for grupo, info in datasets.items():
             typ=2
         )
 
-        # =================================================
-        # NOMBRES DE TERMINOS
-        # =================================================
-
         term_trat = "C(Tratamiento)"
         term_loc = "C(Localidad)"
         term_inter = "C(Tratamiento):C(Localidad)"
         term_bloque = "C(Localidad):C(Bloque)"
         term_resid = "Residual"
-
-        # =================================================
-        # CUADRADOS MEDIOS
-        # =================================================
 
         ms_trat = (
             anova.loc[term_trat, "sum_sq"] /
@@ -463,32 +488,28 @@ for grupo, info in datasets.items():
             anova.loc[term_resid, "df"]
         )
 
-        # =================================================
-        # GUARDAR RESULTADOS
-        # =================================================
-
         resultados.append({
 
-            "Grupo": grupo,
+            "Group": grupo,
 
-            "Variable": var,
+            "Trait": variable_labels[var],
 
-            "Tratamiento": format_ms(
+            "Treatment (T)": format_ms(
                 ms_trat,
                 anova.loc[term_trat, "PR(>F)"]
             ),
 
-            "Localidad": format_ms(
+            "Location (L)": format_ms(
                 ms_loc,
                 anova.loc[term_loc, "PR(>F)"]
             ),
 
-            "Tratamiento × Localidad": format_ms(
+            "T × L": format_ms(
                 ms_inter,
                 anova.loc[term_inter, "PR(>F)"]
             ),
 
-            "Bloque(Localidad)": format_ms(
+            "Block (Location)": format_ms(
                 ms_bloque,
                 anova.loc[term_bloque, "PR(>F)"]
             ),
@@ -497,6 +518,7 @@ for grupo, info in datasets.items():
                 ms_resid,
                 np.nan
             )
+
         })
 
 # =====================================================
@@ -510,6 +532,159 @@ display(tabla_anova)
 ```
 
 ## Specific Objective 1
+
+```{python}
+# ======================================================
+# COPIA DEL DATAFRAME
+# ======================================================
+
+rdt2 = rdt.copy()
+
+# Convertir rendimiento de kg ha-1 a t ha-1
+rdt2["rendimiento_t_ha"] = rdt2["rendimiento_kg_ha"] / 1000
+
+
+# ======================================================
+# VARIABLES
+# ======================================================
+
+variables = {
+
+    "rendimiento_t_ha": "Grain yield (t ha⁻¹)",
+
+    "eficiencia_agua_kg_m3": "Water-use efficiency (kg m⁻³)"
+}
+
+
+# ======================================================
+# FUNCION LETRAS TUKEY
+# ======================================================
+
+def tukey_letters(df, var):
+
+    summary = (
+        df.groupby("Tratamiento")[var]
+        .agg(mean="mean")
+        .reset_index()
+    )
+
+    tukey = pairwise_tukeyhsd(
+        endog=df[var],
+        groups=df["Tratamiento"],
+        alpha=0.05
+    )
+
+    tukey_df = pd.DataFrame(
+        data=tukey._results_table.data[1:],
+        columns=tukey._results_table.data[0]
+    )
+
+    groups = list(summary["Tratamiento"])
+
+    means = dict(
+        zip(summary["Tratamiento"], summary["mean"])
+    )
+
+    groups_sorted = sorted(
+        groups,
+        key=lambda g: means[g],
+        reverse=True
+    )
+
+    sig = pd.DataFrame(
+        False,
+        index=groups,
+        columns=groups
+    )
+
+    for _, row in tukey_df.iterrows():
+
+        g1 = row["group1"]
+        g2 = row["group2"]
+
+        sig.loc[g1, g2] = row["reject"]
+        sig.loc[g2, g1] = row["reject"]
+
+    letters_dict = {g: "" for g in groups}
+
+    alphabet = list("abcdefghijklmnopqrstuvwxyz")
+
+    for letter in alphabet:
+
+        assigned = []
+
+        for g in groups_sorted:
+
+            if letters_dict[g] == "":
+
+                compatible = True
+
+                for a in assigned:
+
+                    if sig.loc[g, a]:
+                        compatible = False
+                        break
+
+                if compatible:
+                    assigned.append(g)
+
+        if not assigned:
+            continue
+
+        for g in assigned:
+            letters_dict[g] += letter
+
+        if all(letters_dict[g] != "" for g in groups):
+            break
+
+    return letters_dict
+
+
+# ======================================================
+# TABLA FINAL
+# ======================================================
+
+tabla_final = pd.DataFrame()
+
+tabla_final["Treatment"] = sorted(
+    rdt2["Tratamiento"].unique()
+)
+
+
+# ======================================================
+# LOOP VARIABLES
+# ======================================================
+
+for var, label in variables.items():
+
+    summary = (
+        rdt2
+        .groupby("Tratamiento")[var]
+        .agg(mean="mean", sd="std")
+        .reset_index()
+    )
+
+    letters_dict = tukey_letters(rdt2, var)
+
+    summary[label] = (
+        summary["mean"].round(2).astype(str)
+        + " ± "
+        + summary["sd"].round(2).astype(str)
+        + " "
+        + summary["Tratamiento"].map(letters_dict)
+    )
+
+    tabla_final[label] = summary[label]
+
+
+# ======================================================
+# MOSTRAR TABLA
+# ======================================================
+
+display(tabla_final)
+```
+
+## Specific Objective 2
 
 ```{python}
 # ======================================================
@@ -699,36 +874,108 @@ for i, var in enumerate(variables):
     letters_dict = tukey_letters(morfo, var)
 
     # ==================================================
-    # GRAFICO
+    # RAINCLOUD PLOT
     # ==================================================
 
-    sns.violinplot(
+    pt.RainCloud(
         data=morfo,
         x="Tratamiento",
         y=var,
         order=order,
         hue="Tratamiento",
         palette=palette_dict,
-        inner="box",
-        linewidth=1.2,
-        cut=0,
-        density_norm="width",
-        legend=False,
-        ax=ax
-    )
 
-    sns.stripplot(
-    data=morfo,
-    x="Tratamiento",
-    y=var,
-    order=order,
-    color="black",
-    size=3,
-    jitter=0.15,
-    alpha=0.5,
-    ax=ax
+        width_viol=0.55,
+        width_box=0.14,
+        move=0.18,
+
+        dodge=False,
+
+        alpha=0.60,
+        point_size=2,
+
+        orient="v",
+
+        ax=ax
 )
 
+    # ==================================================
+    # BOXPLOT
+    # ==================================================
+
+    sns.boxplot(
+        data=morfo,
+        x="Tratamiento",
+        y=var,
+        order=order,
+
+        width=0.14,
+
+        showcaps=False,
+        showfliers=False,
+        legend=False,
+
+        boxprops=dict(
+            facecolor="white",
+            edgecolor="black",
+            linewidth=1.2,
+            zorder=5
+        ),
+
+        whiskerprops=dict(
+            color="black",
+            linewidth=1.2
+        ),
+
+        medianprops=dict(
+            color="black",
+            linewidth=2.2
+        ),
+
+        ax=ax
+)
+
+
+    # ==================================================
+    # PUNTOS
+    # ==================================================
+
+    sns.stripplot(
+        data=morfo,
+        x="Tratamiento",
+        y=var,
+        order=order,
+
+        hue="Tratamiento",
+        palette=palette_dict,
+
+        dodge=False,
+
+        jitter=0.18,
+
+        size=2.4,
+
+        alpha=0.70,
+
+        edgecolor="black",
+        linewidth=0.25,
+
+        legend=False,
+
+        zorder=6,
+
+        ax=ax
+)
+
+    # --------------------------------------------------
+    # Asegurar que la caja quede sobre el raincloud
+    # --------------------------------------------------
+
+    for artist in ax.artists:
+        artist.set_zorder(7)
+
+    for line in ax.lines:
+        line.set_zorder(8)
     # ==================================================
     # AGREGAR LETRAS TUKEY
     # ==================================================
@@ -850,7 +1097,7 @@ plt.savefig(
 )
 ```
 
-## Specific Objective 2
+## Specific Objective 3
 
 ```{python}
 # ======================================================
@@ -1039,36 +1286,109 @@ for i, var in enumerate(variables):
 
     letters_dict = tukey_letters(calidad, var)
 
-    # ==================================================
-    # GRAFICO
+# ==================================================
+    # RAINCLOUD PLOT
     # ==================================================
 
-    sns.violinplot(
+    pt.RainCloud(
         data=calidad,
         x="Tratamiento",
         y=var,
         order=order,
         hue="Tratamiento",
         palette=palette_dict,
-        inner="box",
-        linewidth=1.2,
-        cut=0,
-        density_norm="width",
-        legend=False,
+
+        width_viol=0.55,
+        width_box=0.14,
+        move=0.18,
+
+        dodge=False,
+
+        alpha=0.60,
+        point_size=2,
+
+        orient="v",
+
         ax=ax
-    )
+)
+
+    # ==================================================
+    # BOXPLOT
+    # ==================================================
+
+    sns.boxplot(
+        data=calidad,
+        x="Tratamiento",
+        y=var,
+        order=order,
+
+        width=0.14,
+
+        showcaps=False,
+        showfliers=False,
+        legend=False,
+
+        boxprops=dict(
+            facecolor="white",
+            edgecolor="black",
+            linewidth=1.2,
+            zorder=5
+        ),
+
+        whiskerprops=dict(
+            color="black",
+            linewidth=1.2
+        ),
+
+        medianprops=dict(
+            color="black",
+            linewidth=2.2
+        ),
+
+        ax=ax
+)
+
+
+    # ==================================================
+    # PUNTOS
+    # ==================================================
 
     sns.stripplot(
-    data=calidad,
-    x="Tratamiento",
-    y=var,
-    order=order,
-    color="black",
-    size=3,
-    jitter=0.15,
-    alpha=0.5,
-    ax=ax
+        data=calidad,
+        x="Tratamiento",
+        y=var,
+        order=order,
+
+        hue="Tratamiento",
+        palette=palette_dict,
+
+        dodge=False,
+
+        jitter=0.18,
+
+        size=2.4,
+
+        alpha=0.70,
+
+        edgecolor="black",
+        linewidth=0.25,
+
+        legend=False,
+
+        zorder=6,
+
+        ax=ax
 )
+
+    # --------------------------------------------------
+    # Asegurar que la caja quede sobre el raincloud
+    # --------------------------------------------------
+
+    for artist in ax.artists:
+        artist.set_zorder(7)
+
+    for line in ax.lines:
+        line.set_zorder(8)
 
     # ==================================================
     # AGREGAR LETRAS TUKEY
@@ -1189,144 +1509,6 @@ plt.savefig(
     dpi=300,
     bbox_inches="tight"
 )
-```
-
-## Specific Objective 3
-
-```{python}
-# ======================================================
-# VARIABLES
-# ======================================================
-
-variables = {
-    "rendimiento_kg_ha": "Grain yield (kg ha-1)",
-    "eficiencia_agua_kg_m3": "Irrigation water use efficiency (kg m³)"
-}
-
-# ======================================================
-# FUNCION LETRAS TUKEY
-# ======================================================
-
-def tukey_letters(rdt, var):
-
-    summary = rdt.groupby("Tratamiento")[var].agg(
-        mean="mean"
-    ).reset_index()
-
-    tukey = pairwise_tukeyhsd(
-        endog=rdt[var],
-        groups=rdt["Tratamiento"],
-        alpha=0.05
-    )
-
-    tukey_df = pd.DataFrame(
-        data=tukey._results_table.data[1:],
-        columns=tukey._results_table.data[0]
-    )
-
-    groups = list(summary["Tratamiento"])
-
-    means = dict(
-        zip(summary["Tratamiento"], summary["mean"])
-    )
-
-    groups_sorted = sorted(
-        groups,
-        key=lambda g: means[g],
-        reverse=True
-    )
-
-    sig = pd.DataFrame(
-        False,
-        index=groups,
-        columns=groups
-    )
-
-    for _, row in tukey_df.iterrows():
-
-        g1 = row["group1"]
-        g2 = row["group2"]
-
-        sig.loc[g1, g2] = row["reject"]
-        sig.loc[g2, g1] = row["reject"]
-
-    letters_dict = {g: "" for g in groups}
-
-    alphabet = list("abcdefghijklmnopqrstuvwxyz")
-
-    for letter in alphabet:
-
-        assigned = []
-
-        for g in groups_sorted:
-
-            if letters_dict[g] == "":
-
-                compatible = True
-
-                for a in assigned:
-
-                    if sig.loc[g, a]:
-                        compatible = False
-                        break
-
-                if compatible:
-                    assigned.append(g)
-
-        if not assigned:
-            continue
-
-        for g in assigned:
-            letters_dict[g] += letter
-
-        if all(letters_dict[g] != "" for g in groups):
-            break
-
-    return letters_dict
-
-# ======================================================
-# TABLA FINAL
-# ======================================================
-
-tabla_final = pd.DataFrame()
-
-# tratamientos
-tabla_final["Treatment"] = sorted(
-    morfo["Tratamiento"].unique()
-)
-
-# ======================================================
-# LOOP VARIABLES
-# ======================================================
-
-for var, label in variables.items():
-
-    # summary
-    summary = rdt.groupby("Tratamiento")[var].agg(
-        mean="mean",
-        sd="std"
-    ).reset_index()
-
-    # letras
-    letters_dict = tukey_letters(rdt, var)
-
-    # columna final
-    summary[label] = (
-        summary["mean"].round(2).astype(str)
-        + " ± "
-        + summary["sd"].round(2).astype(str)
-        + " "
-        + summary["Tratamiento"].map(letters_dict)
-    )
-
-    # agregar a tabla
-    tabla_final[label] = summary[label]
-
-# ======================================================
-# VER TABLA
-# ======================================================
-
-display(tabla_final)
 ```
 
 ## Multivariate analysis
@@ -1485,7 +1667,7 @@ g = sns.clustermap(
     linecolor="white",
     figsize=(10,9),
     method="ward",
-    metric="euclidean",
+    metric="euclidean",0
     row_cluster=True,
     col_cluster=True,
     annot=True,
@@ -1586,12 +1768,22 @@ df["Localidad"] = df["Localidad"].replace({
 })
 
 # =====================================================
+# CONVERTIR RENDIMIENTO A t ha⁻¹
+# =====================================================
+
+df["rendimiento_t_ha"] = df["rendimiento_kg_ha"] / 1000
+
+# =====================================================
 # VARIABLES
 # =====================================================
 
 variables = [
 
-    # Morfometría
+    # Yield
+    "rendimiento_t_ha",
+    "eficiencia_agua_kg_m3",
+
+    # Agronomic traits
     "altura_cm",
     "ancho_grano_mm",
     "longitud_grano_mm",
@@ -1599,7 +1791,7 @@ variables = [
     "longitud_panoja_cm",
     "n_panojas_m2",
 
-    # Calidad
+    # Milling quality
     "granos_enteros",
     "granos_quebrados",
     "granos_centro_blanco",
@@ -1607,9 +1799,6 @@ variables = [
     "n_granos_negro",
     "n_granos_lleno",
 
-    # Rendimiento
-    "rendimiento_kg_ha",
-    "eficiencia_agua_kg_m3"
 ]
 
 # =====================================================
@@ -1627,7 +1816,14 @@ variables = [
 
 rename_vars = {
 
-    # Morfometría
+    # Yield and water-use efficiency
+    "rendimiento_t_ha":
+        "Grain yield (t ha⁻¹)",
+
+    "eficiencia_agua_kg_m3":
+        "Water-use efficiency (kg m⁻³)",
+
+    # Agronomic traits
     "altura_cm":
         "Plant height (cm)",
 
@@ -1646,7 +1842,7 @@ rename_vars = {
     "n_panojas_m2":
         "Number of panicles per m²",
 
-    # Calidad
+    # Grain quality traits
     "granos_enteros":
         "Head rice (%)",
 
@@ -1657,20 +1853,14 @@ rename_vars = {
         "Chalky grains (%)",
 
     "n_granos_vano":
-        "Unfilled grains",
+        "Number of unfilled grains per panicle",
 
     "n_granos_negro":
-        "Black grains",
+        "Number of black grains per panicle",
 
     "n_granos_lleno":
-        "Filled grains",
+        "Number of filled grains per panicle"
 
-    # Rendimiento
-    "rendimiento_kg_ha":
-        "Grain yield (kg ha⁻¹)",
-
-    "eficiencia_agua_kg_m3":
-        "Water use efficiency (kg m⁻³)"
 }
 
 # =====================================================
