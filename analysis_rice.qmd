@@ -194,12 +194,12 @@ for i, loc in enumerate(localidades):
     # ETIQUETAS
     # ==================================================
 
-    ax.set_ylabel("Temperature °C")
+    ax.set_ylabel("Temperature (°C)")
 
     ax2.set_ylabel("Precipitation (mm)")
 
     # mover label eje derecho
-    ax2.yaxis.set_label_coords(1.03, 0.5)
+    ax2.yaxis.set_label_coords(1.04, 0.5)
 
     # separar ticks eje derecho
     ax2.tick_params(
@@ -280,7 +280,7 @@ fig.legend(
 # ======================================================
 
 plt.subplots_adjust(
-    top=0.95,
+    top=0.97,
     hspace=0.07,
     right=0.92
 )
@@ -1079,22 +1079,23 @@ fig.legend(
 # ======================================================
 
 plt.subplots_adjust(
-    top=0.86,
-    hspace=0.25,
-    wspace=0.20
+    top=0.98,
+    hspace=0.065,
+    wspace=0.135
 )
 
 # ======================================================
 # MOSTRAR
 # ======================================================
 
-plt.show()
-
 plt.savefig(
     "submission/figure_3.jpg",
     dpi=300,
     bbox_inches="tight"
 )
+
+
+plt.show()
 ```
 
 ## Specific Objective 3
@@ -1493,22 +1494,22 @@ fig.legend(
 # ======================================================
 
 plt.subplots_adjust(
-    top=0.86,
-    hspace=0.25,
-    wspace=0.20
+    top=0.98,
+    hspace=0.065,
+    wspace=0.135
 )
 
 # ======================================================
 # MOSTRAR
 # ======================================================
 
-plt.show()
-
 plt.savefig(
     "submission/figure_4.jpg",
     dpi=300,
     bbox_inches="tight"
 )
+
+plt.show()
 ```
 
 ## Multivariate analysis
